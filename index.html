@@ -1,0 +1,142 @@
+const shiftHours = [
+    "07:00 - 08:00", "08:00 - 09:00", "09:00 - 10:00", "10:00 - 11:00", 
+    "11:00 - 12:00", "12:00 - 13:00", "13:00 - 14:00", "14:00 - 15:00", 
+    "15:00 - 16:00", "16:00 - 17:00", "17:00 - 18:00", "18:00 - 19:00", 
+    "19:00 - 19:30 (0.5h)"
+];
+
+function generateSchedule() {
+    const staffRaw = document.getElementById("staffInput").value;
+    const slotsNeeded = parseInt(document.getElementById("obsNeeded").value);
+    const warningDiv = document.getElementById("safetyWarning");
+    warningDiv.style.display = "none";
+    
+    let staffList = staffRaw.split(',').map(s => s.trim()).filter(s => s.length > 0);
+    
+    if (staffList.length === 0) {
+        alert("Please enter at least a few staff members!");
+        return;
+    }
+    if (staffList.length <= slotsNeeded) {
+        alert("Error: Insufficient headcount to cover basic hourly observation needs.");
+        return;
+    }
+
+    let staffMetrics = {};
+    staffList.forEach(staff => {
+        staffMetrics[staff] = { 
+            totalObsHours: 0, 
+            consecutiveObs: 0, 
+            consecutiveRest: 0,
+            assignedThisHour: false 
+        };
+    });
+
+    let safetyCompromiseTriggered = false;
+    let tableHtml = `<table><thead><tr><th>Time Window</th><th>Observation Tasks (Max 2h consecutive)</th><th>Welfare / Rest Status (Min 2h or 1h safety fall-back)</th></tr></thead><tbody>`;
+
+    for (let h = 0; h < shiftHours.length; h++) {
+        staffList.forEach(s => staffMetrics[s].assignedThisHour = false);
+        
+        let eligibleStaff = [...staffList].sort((a, b) => {
+            if (staffMetrics[b].consecutiveObs !== staffMetrics[a].consecutiveObs) {
+                return staffMetrics[b].consecutiveObs - staffMetrics[a].consecutiveObs;
+            }
+            let aNeedsRest = staffMetrics[a].consecutiveRest > 0 && staffMetrics[a].consecutiveRest < 2;
+            let bNeedsRest = staffMetrics[b].consecutiveRest > 0 && staffMetrics[b].consecutiveRest < 2;
+            if (aNeedsRest !== bNeedsRest) {
+                return aNeedsRest ? 1 : -1; 
+            }
+            return staffMetrics[a].totalObsHours - staffMetrics[b].totalObsHours;
+        });
+
+        let hourlyObsAssignments = [];
+        let assignedCount = 0;
+
+        for (let person of eligibleStaff) {
+            if (assignedCount >= slotsNeeded) break;
+            if (staffMetrics[person].consecutiveRest > 0 && staffMetrics[person].consecutiveRest < 2) continue; 
+            if (staffMetrics[person].consecutiveObs >= 2) continue;
+
+            hourlyObsAssignments.push(person);
+            staffMetrics[person].totalObsHours += (h === 12 ? 0.5 : 1);
+            staffMetrics[person].consecutiveObs += 1;
+            staffMetrics[person].consecutiveRest = 0;
+            staffMetrics[person].assignedThisHour = true;
+            assignedCount++;
+        }
+
+        if (assignedCount < slotsNeeded) {
+            for (let person of eligibleStaff) {
+                if (assignedCount >= slotsNeeded) break;
+                if (staffMetrics[person].assignedThisHour) continue;
+
+                if (staffMetrics[person].consecutiveRest >= 1) {
+                    hourlyObsAssignments.push(person);
+                    staffMetrics[person].totalObsHours += (h === 12 ? 0.5 : 1);
+                    staffMetrics[person].consecutiveObs += 1;
+                    staffMetrics[person].consecutiveRest = 0;
+                    staffMetrics[person].assignedThisHour = true;
+                    assignedCount++;
+                    safetyCompromiseTriggered = true;
+                }
+            }
+        }
+
+        if (assignedCount < slotsNeeded) {
+            for (let person of eligibleStaff) {
+                if (assignedCount >= slotsNeeded) break;
+                if (!staffMetrics[person].assignedThisHour) {
+                    hourlyObsAssignments.push(person);
+                    staffMetrics[person].totalObsHours += (h === 12 ? 0.5 : 1);
+                    staffMetrics[person].consecutiveObs += 1;
+                    staffMetrics[person].consecutiveRest = 0;
+                    staffMetrics[person].assignedThisHour = true;
+                    assignedCount++;
+                    safetyCompromiseTriggered = true;
+                }
+            }
+        }
+
+        let hourlyWardAssignments = [];
+        staffList.forEach(person => {
+            if (!staffMetrics[person].assignedThisHour) {
+                staffMetrics[person].consecutiveObs = 0; 
+                staffMetrics[person].consecutiveRest += 1; 
+
+                let restDuration = staffMetrics[person].consecutiveRest;
+                if (restDuration >= 2) {
+                    hourlyWardAssignments.push(`${person} <span class="badge-rest2">Resting (Block: ${restDuration}h)</span>`);
+                } else if (restDuration === 1) {
+                    hourlyWardAssignments.push(`${person} <span class="badge-rest1">Resting (Block: 1h)</span>`);
+                } else {
+                    hourlyWardAssignments.push(`${person} <span class="badge-ward">Floor Duty</span>`);
+                }
+            }
+        });
+
+        let obsDisplay = hourlyObsAssignments.map(p => `<span class="badge-obs">👁️ ${p}</span>`).join(" ");
+        let wardDisplay = hourlyWardAssignments.join(", ");
+
+        tableHtml += `<tr>
+            <td><strong>${shiftHours[h]}</strong></td>
+            <td>${obsDisplay}</td>
+            <td>${wardDisplay}</td>
+        </tr>`;
+    }
+
+    tableHtml += `</tbody></table>`;
+    document.getElementById("scheduleOutput").innerHTML = tableHtml;
+
+    if (safetyCompromiseTriggered) {
+        warningDiv.innerHTML = "⚠️ <strong>Safety Compromise Note:</strong> Due to low staffing levels relative to required active slots, some rest windows had to scale down to the 1-hour minimum to ensure full observation coverage.";
+        warningDiv.style.display = "block";
+    }
+}
+
+function resetApp() {
+    document.getElementById("staffInput").value = "";
+    document.getElementById("obsNeeded").value = "2";
+    document.getElementById("scheduleOutput").innerHTML = "Memory cleared. Submit details to start over.";
+    document.getElementById("safetyWarning").style.display = "none";
+}
