@@ -1,0 +1,1019 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Ward Observation Allocator</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif;
+            background-color: #f4f6f9;
+            color: #333;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1800px;
+            margin: 0 auto;
+            background: white;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        /* ===== HEADER ===== */
+        h1 {
+            color: #1e3a8a;
+            font-size: 28px;
+            margin-bottom: 8px;
+            border-bottom: 3px solid #3b82f6;
+            padding-bottom: 12px;
+        }
+
+        h2 {
+            color: #1e3a8a;
+            font-size: 16px;
+            font-weight: 600;
+            margin-top: 28px;
+            margin-bottom: 12px;
+            border-bottom: 1px solid #cbd5e1;
+            padding-bottom: 6px;
+        }
+
+        /* ===== INPUT SECTION ===== */
+        .setup-section {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 20px;
+            margin-bottom: 28px;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 24px;
+            flex-wrap: wrap;
+            align-items: flex-end;
+        }
+
+        .control-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 120px;
+        }
+
+        label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        input[type="number"],
+        select {
+            padding: 10px 12px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 14px;
+            background: white;
+            color: #333;
+        }
+
+        input[type="number"]:focus,
+        select:focus {
+            outline: none;
+            border-color: #3b82f6;
+            box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.1);
+        }
+
+        /* ===== SHIFT TOGGLE ===== */
+        .shift-toggle-group {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+        }
+
+        .shift-toggle-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .toggle-buttons {
+            display: flex;
+            gap: 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background: white;
+            padding: 4px;
+        }
+
+        .toggle-btn {
+            flex: 1;
+            padding: 8px 16px;
+            border: none;
+            background: transparent;
+            color: #475569;
+            font-weight: 600;
+            font-size: 13px;
+            cursor: pointer;
+            border-radius: 4px;
+            transition: all 0.2s;
+        }
+
+        .toggle-btn.active {
+            background: #3b82f6;
+            color: white;
+            box-shadow: 0 2px 4px rgba(59, 130, 246, 0.3);
+        }
+
+        .toggle-btn:hover:not(.active) {
+            background: #f0f4f8;
+        }
+
+        .roster-section {
+            margin-top: 20px;
+            padding-top: 20px;
+            border-top: 1px solid #cbd5e1;
+        }
+
+        .roster-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 12px;
+        }
+
+        .roster-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(140px, 1fr));
+            gap: 10px;
+            width: 100%;
+        }
+
+        .roster-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            background: white;
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+        }
+
+        .roster-item .staff-letter {
+            font-weight: 700;
+            color: #3b82f6;
+            font-size: 14px;
+            min-width: 20px;
+        }
+
+        .roster-item input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid #cbd5e1;
+            border-radius: 4px;
+            font-size: 13px;
+        }
+
+        /* ===== BUTTONS ===== */
+        .button-group {
+            display: flex;
+            gap: 12px;
+            margin-top: 20px;
+            flex-wrap: wrap;
+        }
+
+        button {
+            padding: 12px 24px;
+            border: none;
+            border-radius: 6px;
+            font-weight: 600;
+            font-size: 14px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-allocate {
+            background-color: #3b82f6;
+            color: white;
+        }
+
+        .btn-allocate:hover {
+            background-color: #2563eb;
+            box-shadow: 0 4px 12px rgba(59, 130, 246, 0.3);
+        }
+
+        .btn-reset {
+            background-color: #ef4444;
+            color: white;
+        }
+
+        .btn-reset:hover {
+            background-color: #dc2626;
+            box-shadow: 0 4px 12px rgba(239, 68, 68, 0.3);
+        }
+
+        .btn-print {
+            background-color: #64748b;
+            color: white;
+        }
+
+        .btn-print:hover {
+            background-color: #475569;
+            box-shadow: 0 4px 12px rgba(100, 116, 139, 0.3);
+        }
+
+        /* ===== ALERT BANNER ===== */
+        .alert-banner {
+            display: none;
+            margin-bottom: 20px;
+            padding: 15px 16px;
+            background-color: #fef2f2;
+            border-left: 4px solid #ef4444;
+            border-radius: 4px;
+            color: #991b1b;
+            font-weight: 500;
+            font-size: 14px;
+        }
+
+        .alert-banner.visible {
+            display: block;
+        }
+
+        /* ===== TIME SLOT INPUT SECTION ===== */
+        .time-slot-setup {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 8px;
+            padding: 16px;
+            margin-bottom: 28px;
+            overflow-x: auto;
+        }
+
+        .time-slot-grid {
+            display: grid;
+            grid-template-columns: auto repeat(3, minmax(100px, 1fr)) auto;
+            gap: 12px;
+            min-width: max-content;
+            align-items: start;
+        }
+
+        .time-slot-header {
+            font-weight: 700;
+            color: #1e3a8a;
+            font-size: 13px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            padding: 8px 0;
+            white-space: nowrap;
+        }
+
+        .time-slot-col {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .time-slot-label {
+            font-weight: 600;
+            color: #475569;
+            font-size: 12px;
+            padding: 4px 0;
+            min-height: 20px;
+            white-space: nowrap;
+        }
+
+        .slot-input-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .slot-qty-input,
+        .slot-initials-input {
+            padding: 8px 10px;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+        }
+
+        .slot-qty-input {
+            font-weight: 600;
+            background: white;
+            width: 60px;
+        }
+
+        .slot-initials-input {
+            font-size: 11px;
+            width: 100px;
+            font-style: italic;
+            color: #64748b;
+            background: #f1f5f9;
+        }
+
+        .bulk-fill-row {
+            display: grid;
+            grid-template-columns: auto repeat(3, minmax(100px, 1fr)) auto;
+            gap: 12px;
+            background: #eff6ff;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            padding: 12px;
+            margin-bottom: 12px;
+            align-items: center;
+        }
+
+        .bulk-label {
+            font-weight: 700;
+            color: #3b82f6;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            white-space: nowrap;
+        }
+
+        .bulk-col {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+
+        .bulk-qty-input,
+        .bulk-initials-input {
+            padding: 8px 10px;
+            border: 1px solid #3b82f6;
+            border-radius: 6px;
+            font-size: 13px;
+            text-align: center;
+            background: white;
+            font-weight: 600;
+        }
+
+        .bulk-initials-input {
+            font-size: 11px;
+            width: 100%;
+            font-style: italic;
+            color: #1e40af;
+            background: #e0e7ff;
+        }
+
+        /* ===== ALLOCATION GRID TABLE ===== */
+        .allocation-section {
+            overflow-x: auto;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 16px;
+            background: white;
+            font-size: 13px;
+        }
+
+        th {
+            background-color: #0f172a;
+            color: white;
+            font-weight: 700;
+            padding: 12px;
+            text-align: center;
+            border: 1px solid #1e293b;
+            white-space: nowrap;
+            font-size: 12px;
+        }
+
+        th.time-column {
+            text-align: left;
+            width: 80px;
+        }
+
+        td {
+            border: 1px solid #cbd5e1;
+            padding: 10px;
+            text-align: center;
+            height: 40px;
+            background: white;
+        }
+
+        td.time-cell {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            text-align: left;
+            white-space: nowrap;
+            width: 80px;
+        }
+
+        td.total-cell {
+            background-color: #f1f5f9;
+            font-weight: 600;
+            color: #1e3a8a;
+            width: 50px;
+        }
+
+        /* Cell Status Colors */
+        .cell-obs {
+            background-color: #dbeafe;
+            color: #1e40af;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .cell-break {
+            background-color: #dcfce7;
+            color: #166534;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .cell-float {
+            background-color: #fef08a;
+            color: #854d0e;
+            font-weight: 600;
+            font-size: 11px;
+        }
+
+        .cell-lockout {
+            background-color: #f1f5f9;
+            color: #64748b;
+            font-weight: 500;
+            font-size: 11px;
+        }
+
+        .cell-absent {
+            background-color: #e5e7eb;
+            color: #6b7280;
+            font-weight: 500;
+            font-size: 11px;
+        }
+
+        .cell-empty {
+            background-color: white;
+            color: #cbd5e1;
+        }
+
+        /* ===== SUMMARY TABLE ===== */
+        .summary-section {
+            overflow-x: auto;
+        }
+
+        #summaryTable th {
+            background-color: #334155;
+            color: white;
+        }
+
+        #summaryTable td {
+            font-weight: 600;
+            color: #1e3a8a;
+        }
+
+        #summaryTable .metric-label {
+            text-align: left;
+            background-color: #f8fafc;
+            color: #475569;
+            font-weight: 600;
+            width: 160px;
+        }
+
+        /* ===== PRINT STYLES ===== */
+        @media print {
+            body {
+                padding: 0;
+                background: white;
+            }
+
+            .container {
+                box-shadow: none;
+                padding: 20px;
+                max-width: 100%;
+            }
+
+            .setup-section,
+            .time-slot-setup,
+            .button-group,
+            .alert-banner,
+            h2:first-of-type,
+            h2:nth-of-type(2) {
+                display: none !important;
+            }
+
+            .allocation-section {
+                page-break-inside: avoid;
+            }
+
+            h2 {
+                display: none;
+            }
+
+            h1 {
+                border-bottom: 2px solid #000;
+                font-size: 20px;
+                margin-bottom: 12px;
+                padding-bottom: 8px;
+            }
+
+            .summary-section {
+                display: none !important;
+            }
+
+            table {
+                font-size: 11px;
+            }
+
+            th,
+            td {
+                padding: 6px 4px;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+<div class="container">
+    <!-- HEADER -->
+    <h1>🏥 Ward Observation Allocator</h1>
+
+    <!-- ALERT BANNER -->
+    <div class="alert-banner" id="alertBanner"></div>
+
+    <!-- ===== INPUT SECTION ===== -->
+    <div class="setup-section">
+        <div class="input-row">
+            <div class="control-group">
+                <label for="staffCount">Total Active Staff</label>
+                <select id="staffCount" onchange="updateAllTables()">
+                    <option value="4">4 Staff</option>
+                    <option value="5" selected>5 Staff</option>
+                    <option value="6">6 Staff</option>
+                    <option value="7">7 Staff</option>
+                    <option value="8">8 Staff</option>
+                    <option value="9">9 Staff</option>
+                    <option value="10">10 Staff</option>
+                </select>
+            </div>
+
+            <div class="control-group">
+                <label for="targetBreaks">Target Break Hours Per Staff</label>
+                <input type="number" id="targetBreaks" value="2" min="1" max="4">
+            </div>
+
+            <div class="shift-toggle-group">
+                <span class="shift-toggle-label">Shift Type</span>
+                <div class="toggle-buttons">
+                    <button class="toggle-btn active" id="toggleNight" onclick="switchShift('night')">🌙 Night (19:30-07:30)</button>
+                    <button class="toggle-btn" id="toggleDay" onclick="switchShift('day')">☀️ Day (07:30-19:30)</button>
+                </div>
+            </div>
+
+            <div class="button-group" style="margin-top: 0; margin-left: auto;">
+                <button class="btn-allocate" onclick="allocateSchedule()">⚡ Allocate Observation</button>
+                <button class="btn-print" onclick="printSchedule()">🖨️ Print Schedule</button>
+                <button class="btn-reset" onclick="resetAll()">Reset All</button>
+            </div>
+        </div>
+
+        <!-- STAFF ROSTER -->
+        <div class="roster-section">
+            <div class="roster-label">Staff Member Names</div>
+            <div class="roster-grid" id="rosterGrid"></div>
+        </div>
+    </div>
+
+    <!-- ===== TIME SLOT OBSERVATION LEVELS SETUP ===== -->
+    <h2>Observation Levels Required Per Time Slot</h2>
+    <div class="time-slot-setup">
+        <!-- Bulk Fill Row -->
+        <div class="bulk-fill-row">
+            <div class="bulk-label">BULK FILL ALL:</div>
+            <div class="bulk-col">
+                <input type="number" class="bulk-qty-input" id="bulkL1" value="1" min="0" onchange="bulkFillLevel('l1')">
+                <label style="font-size: 11px; text-align: center; color: #3b82f6; font-weight: 600;">L1+L2</label>
+            </div>
+            <div class="bulk-col">
+                <input type="number" class="bulk-qty-input" id="bulkL311" value="0" min="0" onchange="bulkFillLevel('l311')">
+                <input type="text" class="bulk-initials-input" id="bulkInitL311" placeholder="e.g. AA, BB">
+                <label style="font-size: 11px; text-align: center; color: #1e40af; font-weight: 600;">L3 1:1</label>
+            </div>
+            <div class="bulk-col">
+                <input type="number" class="bulk-qty-input" id="bulkL321" value="0" min="0" onchange="bulkFillLevel('l321')">
+                <input type="text" class="bulk-initials-input" id="bulkInitL321" placeholder="e.g. CC, DD">
+                <label style="font-size: 11px; text-align: center; color: #1e40af; font-weight: 600;">L3 2:1</label>
+            </div>
+        </div>
+
+        <!-- Time Slot Grid -->
+        <div class="time-slot-grid" id="timeSlotGrid"></div>
+    </div>
+
+    <!-- ===== ALLOCATION GRID ===== -->
+    <h2>Shift Allocation Grid</h2>
+    <div class="allocation-section">
+        <table id="allocationTable">
+            <thead>
+                <tr id="allocationHeader">
+                    <th class="time-column">Time Slot</th>
+                    <th>L1+L2</th>
+                    <th>L3 1:1</th>
+                    <th>L3 2:1</th>
+                    <th>Total</th>
+                </tr>
+            </thead>
+            <tbody id="allocationBody"></tbody>
+        </table>
+    </div>
+
+    <!-- ===== SUMMARY TABLE ===== -->
+    <h2>Shift Workload Summary</h2>
+    <div class="summary-section">
+        <table id="summaryTable">
+            <thead>
+                <tr id="summaryHeader">
+                    <th>Metric</th>
+                </tr>
+            </thead>
+            <tbody>
+                <tr id="summaryObsRow">
+                    <td class="metric-label">Total Obs Hours</td>
+                </tr>
+                <tr id="summaryFloatRow">
+                    <td class="metric-label">Total Float Hours</td>
+                </tr>
+                <tr id="summaryBreakRow">
+                    <td class="metric-label">Total Break Hours</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<!-- ===== JAVASCRIPT: DATA MODEL & UI MANAGEMENT ===== -->
+<script>
+    /**
+     * DATA MODEL & CONSTANTS
+     */
+    const TIME_SLOTS_NIGHT = [
+        "19:30", "20:30", "21:30", "22:30", "23:30",
+        "00:30", "01:30", "02:30", "03:30", "04:30", "05:30", "06:30"
+    ];
+
+    const TIME_SLOTS_DAY = [
+        "07:30", "08:30", "09:30", "10:30", "11:30",
+        "12:30", "13:30", "14:30", "15:30", "16:30", "17:30", "18:30"
+    ];
+
+    const STAFF_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+
+    const OBSERVATION_LEVELS = [
+        { id: "l1", label: "L1+L2", staffPerSlot: 1 },
+        { id: "l311", label: "L3 1:1", staffPerSlot: 1 },
+        { id: "l321", label: "L3 2:1", staffPerSlot: 2 }
+    ];
+
+    /**
+     * State object to hold all allocation data
+     */
+    const state = {
+        shiftType: "night",  // "night" or "day"
+        staffCount: 5,
+        targetBreaks: 2,
+        staffNames: {},  // e.g., { 0: "Sarah", 1: "John", ... }
+        timeSlotRequirements: {},  // e.g., { 0: { l1: 1, l311: 0, l321: 0 }, ... }
+        timeSlotInitials: {},  // e.g., { 0: { l311: "AA,BB", l321: "CC,DD" }, ... }
+        allocation: {},  // e.g., { 0: { 0: "OBS", 1: "FLOAT", ... }, ... } (row -> col -> status)
+        staffMetrics: {}  // e.g., { 0: { obsHours: 0, floatHours: 0, breakHours: 0 }, ... }
+    };
+
+    /**
+     * GET CURRENT TIME SLOTS BASED ON SHIFT TYPE
+     */
+    function getTimeSlots() {
+        return state.shiftType === "night" ? TIME_SLOTS_NIGHT : TIME_SLOTS_DAY;
+    }
+
+    /**
+     * SWITCH SHIFT TYPE
+     */
+    function switchShift(type) {
+        state.shiftType = type;
+        document.getElementById("toggleNight").classList.toggle("active", type === "night");
+        document.getElementById("toggleDay").classList.toggle("active", type === "day");
+        buildTimeSlotGrid();
+        buildAllocationTable();
+    }
+
+    /**
+     * INITIALIZATION
+     */
+    function initializeState() {
+        state.staffCount = parseInt(document.getElementById("staffCount").value);
+        state.targetBreaks = parseInt(document.getElementById("targetBreaks").value);
+        state.staffNames = {};
+        state.timeSlotRequirements = {};
+        state.timeSlotInitials = {};
+        state.allocation = {};
+        state.staffMetrics = {};
+
+        // Initialize staff names
+        for (let i = 0; i < state.staffCount; i++) {
+            const input = document.getElementById(`nameInput-${i}`);
+            state.staffNames[i] = (input && input.value.trim()) ? input.value.trim() : STAFF_LETTERS[i];
+        }
+
+        const timeSlots = getTimeSlots();
+
+        // Initialize time slot requirements
+        for (let slot = 0; slot < timeSlots.length; slot++) {
+            state.timeSlotRequirements[slot] = {};
+            state.timeSlotInitials[slot] = {};
+            OBSERVATION_LEVELS.forEach(level => {
+                const input = document.getElementById(`qty-${level.id}-${slot}`);
+                state.timeSlotRequirements[slot][level.id] = (input && parseInt(input.value)) || 0;
+
+                const initialsInput = document.getElementById(`init-${level.id}-${slot}`);
+                state.timeSlotInitials[slot][level.id] = (initialsInput && initialsInput.value) || "";
+            });
+        }
+
+        // Initialize allocation grid (all cells start empty)
+        for (let slot = 0; slot < timeSlots.length; slot++) {
+            state.allocation[slot] = {};
+            for (let staff = 0; staff < state.staffCount; staff++) {
+                state.allocation[slot][staff] = ""; // Will be: OBS, BREAK, FLOAT, LOCKOUT, ABSENT
+            }
+        }
+
+        // Initialize staff metrics
+        for (let i = 0; i < state.staffCount; i++) {
+            state.staffMetrics[i] = { obsHours: 0, floatHours: 0, breakHours: 0 };
+        }
+    }
+
+    /**
+     * BUILD ROSTER INPUTS
+     */
+    function buildRosterGrid() {
+        const grid = document.getElementById("rosterGrid");
+        grid.innerHTML = "";
+        const count = parseInt(document.getElementById("staffCount").value);
+
+        for (let i = 0; i < count; i++) {
+            const item = document.createElement("div");
+            item.className = "roster-item";
+            item.innerHTML = `
+                <span class="staff-letter">${STAFF_LETTERS[i]}</span>
+                <input type="text" class="name-input" id="nameInput-${i}" value="${STAFF_LETTERS[i]}" placeholder="Name">
+            `;
+            grid.appendChild(item);
+        }
+    }
+
+    /**
+     * BUILD TIME SLOT INPUT GRID
+     */
+    function buildTimeSlotGrid() {
+        const grid = document.getElementById("timeSlotGrid");
+        grid.innerHTML = "";
+        const timeSlots = getTimeSlots();
+
+        const header = document.createElement("div");
+        header.style.display = "contents";
+        header.innerHTML = `
+            <div class="time-slot-header">Time</div>
+            ${OBSERVATION_LEVELS.map(level => `<div class="time-slot-header">${level.label}</div>`).join("")}
+            <div class="time-slot-header">Total</div>
+        `;
+        grid.appendChild(header);
+
+        timeSlots.forEach((time, slot) => {
+            const timeLabel = document.createElement("div");
+            timeLabel.className = "time-slot-label";
+            timeLabel.innerText = time;
+            grid.appendChild(timeLabel);
+
+            OBSERVATION_LEVELS.forEach(level => {
+                const col = document.createElement("div");
+                col.className = "slot-input-group";
+                col.innerHTML = `
+                    <input type="number" class="slot-qty-input" id="qty-${level.id}-${slot}" value="0" min="0" onchange="updateTimeSlotTotal(${slot})">
+                    <input type="text" class="slot-initials-input" id="init-${level.id}-${slot}" placeholder="initials">
+                `;
+                grid.appendChild(col);
+            });
+
+            const totalLabel = document.createElement("div");
+            totalLabel.className = "time-slot-label";
+            totalLabel.id = `total-${slot}`;
+            totalLabel.innerText = "0";
+            grid.appendChild(totalLabel);
+        });
+    }
+
+    /**
+     * UPDATE TIME SLOT TOTAL
+     */
+    function updateTimeSlotTotal(slot) {
+        let total = 0;
+        OBSERVATION_LEVELS.forEach(level => {
+            const input = document.getElementById(`qty-${level.id}-${slot}`);
+            const qty = (input && parseInt(input.value)) || 0;
+            total += qty * level.staffPerSlot;
+        });
+        document.getElementById(`total-${slot}`).innerText = total;
+    }
+
+    /**
+     * BULK FILL FUNCTIONALITY
+     */
+    function bulkFillLevel(levelId) {
+        const bulkQtyInput = document.getElementById(`bulk${levelId.toUpperCase()}`);
+        const bulkQty = (bulkQtyInput && parseInt(bulkQtyInput.value)) || 0;
+
+        let bulkInitials = "";
+        if (levelId !== "l1") {
+            const initInput = document.getElementById(`bulkInit${levelId.toUpperCase()}`);
+            bulkInitials = (initInput && initInput.value) || "";
+        }
+
+        const timeSlots = getTimeSlots();
+        timeSlots.forEach((_, slot) => {
+            const qtyInput = document.getElementById(`qty-${levelId}-${slot}`);
+            if (qtyInput) qtyInput.value = bulkQty;
+
+            if (levelId !== "l1" && bulkInitials) {
+                const initInput = document.getElementById(`init-${levelId}-${slot}`);
+                if (initInput) initInput.value = bulkInitials;
+            }
+
+            updateTimeSlotTotal(slot);
+        });
+    }
+
+    /**
+     * BUILD ALLOCATION TABLE
+     */
+    function buildAllocationTable() {
+        const tbody = document.getElementById("allocationBody");
+        tbody.innerHTML = "";
+        const timeSlots = getTimeSlots();
+
+        timeSlots.forEach((time, slot) => {
+            const row = document.createElement("tr");
+            row.id = `row-${slot}`;
+
+            // Time cell
+            const timeCell = document.createElement("td");
+            timeCell.className = "time-cell";
+            timeCell.innerText = time;
+            row.appendChild(timeCell);
+
+            // Observation level headers
+            OBSERVATION_LEVELS.forEach(level => {
+                const cell = document.createElement("td");
+                cell.id = `header-${level.id}-${slot}`;
+                cell.innerText = "0";
+                row.appendChild(cell);
+            });
+
+            // Total cell
+            const totalCell = document.createElement("td");
+            totalCell.className = "total-cell";
+            totalCell.id = `alloc-total-${slot}`;
+            totalCell.innerText = "0";
+            row.appendChild(totalCell);
+
+            tbody.appendChild(row);
+        });
+
+        // Add staff columns
+        const headerRow = document.getElementById("allocationHeader");
+        while (headerRow.children.length > 5) {
+            headerRow.removeChild(headerRow.lastChild);
+        }
+
+        for (let i = 0; i < state.staffCount; i++) {
+            const th = document.createElement("th");
+            th.id = `staff-header-${i}`;
+            th.innerText = state.staffNames[i] || STAFF_LETTERS[i];
+            headerRow.appendChild(th);
+        }
+
+        // Build data cells
+        for (let slot = 0; slot < timeSlots.length; slot++) {
+            const row = document.getElementById(`row-${slot}`);
+            for (let staff = 0; staff < state.staffCount; staff++) {
+                const cell = document.createElement("td");
+                cell.id = `cell-${slot}-${staff}`;
+                cell.className = "cell-empty";
+                cell.innerText = "";
+                row.appendChild(cell);
+            }
+        }
+    }
+
+    /**
+     * BUILD SUMMARY TABLE
+     */
+    function buildSummaryTable() {
+        const headerRow = document.getElementById("summaryHeader");
+        while (headerRow.children.length > 1) {
+            headerRow.removeChild(headerRow.lastChild);
+        }
+
+        for (let i = 0; i < state.staffCount; i++) {
+            const th = document.createElement("th");
+            th.innerText = state.staffNames[i] || STAFF_LETTERS[i];
+            headerRow.appendChild(th);
+        }
+
+        const obsRow = document.getElementById("summaryObsRow");
+        const floatRow = document.getElementById("summaryFloatRow");
+        const breakRow = document.getElementById("summaryBreakRow");
+
+        // Clear existing cells
+        while (obsRow.children.length > 1) obsRow.removeChild(obsRow.lastChild);
+        while (floatRow.children.length > 1) floatRow.removeChild(floatRow.lastChild);
+        while (breakRow.children.length > 1) breakRow.removeChild(breakRow.lastChild);
+
+        for (let i = 0; i < state.staffCount; i++) {
+            const obsTd = document.createElement("td");
+            obsTd.id = `sum-obs-${i}`;
+            obsTd.innerText = "0";
+            obsRow.appendChild(obsTd);
+
+            const floatTd = document.createElement("td");
+            floatTd.id = `sum-float-${i}`;
+            floatTd.innerText = "0";
+            floatRow.appendChild(floatTd);
+
+            const breakTd = document.createElement("td");
+            breakTd.id = `sum-break-${i}`;
+            breakTd.innerText = "0";
+            breakRow.appendChild(breakTd);
+        }
+    }
+
+    /**
+     * UPDATE ALL TABLES (called when staff count changes)
+     */
+    function updateAllTables() {
+        buildRosterGrid();
+        buildTimeSlotGrid();
+        buildAllocationTable();
+        buildSummaryTable();
+    }
+
+    /**
+     * PLACEHOLDER: ALLOCATE SCHEDULE (to be populated with algorithm logic)
+     */
+    function allocateSchedule() {
+        initializeState();
+        const banner = document.getElementById("alertBanner");
+        banner.classList.remove("visible");
+
+        // ===== ALGORITHM LOGIC WILL GO HERE IN PHASE 2 =====
+        // For now, show empty cells ready for algorithm population
+        
+        alert("✅ Layout ready for Phase 2 algorithm.\n\nPhase 2 will implement:\n• Observation duty assignment\n• Break scheduling logic\n• Constraint validation\n• Safety rule enforcement");
+    }
+
+    /**
+     * PRINT SCHEDULE (allocation table only)
+     */
+    function printSchedule() {
+        window.print();
+    }
+
+    /**
+     * RESET ALL
+     */
+    function resetAll() {
+        if (confirm("Clear all data?")) {
+            document.getElementById("staffCount").value = "5";
+            document.getElementById("targetBreaks").value = "2";
+            buildRosterGrid();
+            buildTimeSlotGrid();
+            buildAllocationTable();
+            buildSummaryTable();
+            document.getElementById("alertBanner").classList.remove("visible");
+        }
+    }
+
+    /**
+     * INITIALIZATION ON PAGE LOAD
+     */
+    window.addEventListener("DOMContentLoaded", function() {
+        updateAllTables();
+    });
+</script>
+
+</body>
+</html>
