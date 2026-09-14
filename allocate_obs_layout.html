@@ -234,6 +234,22 @@
             font-size: 12px;
         }
 
+        /* ===== INFO BOX ===== */
+        .info-box {
+            background: #eff6ff;
+            border: 1px solid #93c5fd;
+            border-radius: 4px;
+            padding: 12px;
+            margin-bottom: 16px;
+            font-size: 12px;
+            color: #1e40af;
+            line-height: 1.5;
+        }
+
+        .info-box strong {
+            font-weight: 700;
+        }
+
         /* ===== TIME SLOT REQUIREMENTS SECTION ===== */
         .time-slot-config {
             background: #f8fafc;
@@ -246,7 +262,7 @@
 
         .time-slot-setup-grid {
             display: inline-grid;
-            grid-template-columns: 70px repeat(3, 80px) 50px;
+            grid-template-columns: 70px 60px repeat(2, 90px) 50px;
             gap: 8px;
             min-width: min-content;
             align-items: start;
@@ -261,6 +277,7 @@
             padding: 6px 0;
             text-align: center;
             white-space: nowrap;
+            line-height: 1.3;
         }
 
         .time-slot-time {
@@ -299,10 +316,18 @@
             font-style: italic;
         }
 
+        .time-slot-note {
+            font-size: 9px;
+            color: #94a3b8;
+            text-align: center;
+            margin-top: 2px;
+            font-style: italic;
+        }
+
         /* ===== BULK FILL ROW ===== */
         .bulk-fill-row {
             display: inline-grid;
-            grid-template-columns: 70px repeat(3, 80px) 50px;
+            grid-template-columns: 70px 60px repeat(2, 90px) 50px;
             gap: 8px;
             background: #eff6ff;
             border: 1px solid #3b82f6;
@@ -351,6 +376,13 @@
             background: #e0e7ff;
             color: #1e40af;
             font-weight: 600;
+        }
+
+        .bulk-type-label {
+            font-size: 10px;
+            text-align: center;
+            font-weight: 600;
+            color: #3b82f6;
         }
 
         /* ===== ALLOCATION GRID TABLE ===== */
@@ -505,6 +537,7 @@
             .setup-section,
             .time-slot-config,
             .button-group,
+            .info-box,
             h1,
             h2 {
                 display: none !important;
@@ -527,6 +560,16 @@
             #allocationTable td {
                 padding: 5px 3px;
             }
+
+            /* Only show staff grid columns in print (hide obs level summary columns) */
+            #allocationTable th:nth-child(2),
+            #allocationTable th:nth-child(3),
+            #allocationTable th:nth-child(4),
+            #allocationTable td:nth-child(2),
+            #allocationTable td:nth-child(3),
+            #allocationTable td:nth-child(4) {
+                display: none !important;
+            }
         }
     </style>
 </head>
@@ -536,6 +579,14 @@
 <div class="container">
     <!-- HEADER -->
     <h1>🏥 Ward Observation Allocator</h1>
+
+    <!-- INFO BOX -->
+    <div class="info-box">
+        <strong>How This Works:</strong><br>
+        • <strong>L1+L2</strong> (General Obs): 1 staff per hour, ALL patients, no initials needed<br>
+        • <strong>L3 1:1</strong> (Enhanced Obs): 1 staff per named patient<br>
+        • <strong>L3 2:1</strong> (Enhanced Obs): 2 staff per named patient
+    </div>
 
     <!-- ===== INPUT SECTION ===== -->
     <div class="setup-section">
@@ -586,18 +637,18 @@
         <div class="bulk-fill-row">
             <div class="bulk-label">BULK FILL</div>
             <div class="bulk-col">
-                <input type="number" class="bulk-qty" id="bulkL1" value="1" min="0" onchange="bulkFillLevel('l1')">
-                <label style="font-size: 10px; text-align: center; font-weight: 600; color: #3b82f6;">L1+L2</label>
+                <input type="number" class="bulk-qty" id="bulkL1" value="1" min="0" max="1" onchange="bulkFillLevel('l1')">
+                <label class="bulk-type-label">L1+L2</label>
             </div>
             <div class="bulk-col">
                 <input type="number" class="bulk-qty" id="bulkL311" value="0" min="0" onchange="bulkFillLevel('l311')">
-                <input type="text" class="bulk-initials" id="bulkInitL311" placeholder="e.g. JD">
-                <label style="font-size: 10px; text-align: center; font-weight: 600; color: #1e40af;">L3 1:1</label>
+                <input type="text" class="bulk-initials" id="bulkInitL311" placeholder="pt initials">
+                <label class="bulk-type-label">L3 1:1</label>
             </div>
             <div class="bulk-col">
                 <input type="number" class="bulk-qty" id="bulkL321" value="0" min="0" onchange="bulkFillLevel('l321')">
-                <input type="text" class="bulk-initials" id="bulkInitL321" placeholder="e.g. AA">
-                <label style="font-size: 10px; text-align: center; font-weight: 600; color: #1e40af;">L3 2:1</label>
+                <input type="text" class="bulk-initials" id="bulkInitL321" placeholder="pt initials">
+                <label class="bulk-type-label">L3 2:1</label>
             </div>
             <div style="text-align: center;"></div>
         </div>
@@ -612,9 +663,9 @@
             <thead>
                 <tr id="allocationHeader">
                     <th class="time-header">Time</th>
-                    <th>L1+L2</th>
-                    <th>L3 1:1</th>
-                    <th>L3 2:1</th>
+                    <th title="General Obs - 1 staff per hour, all patients">L1+L2</th>
+                    <th title="Enhanced Obs - 1 staff per named patient">L3 1:1</th>
+                    <th title="Enhanced Obs - 2 staff per named patient">L3 2:1</th>
                 </tr>
             </thead>
             <tbody id="allocationBody"></tbody>
@@ -651,9 +702,9 @@
     const TIME_SLOTS_DAY = ["07:30", "08:30", "09:30", "10:30", "11:30", "12:30", "13:30", "14:30", "15:30", "16:30", "17:30", "18:30"];
     const STAFF_LETTERS = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
     const OBSERVATION_LEVELS = [
-        { id: "l1", label: "L1+L2", staffPerSlot: 1 },
-        { id: "l311", label: "L3 1:1", staffPerSlot: 1 },
-        { id: "l321", label: "L3 2:1", staffPerSlot: 2 }
+        { id: "l1", label: "L1+L2", staffPerSlot: 1, needsInitials: false, description: "General Obs" },
+        { id: "l311", label: "L3 1:1", staffPerSlot: 1, needsInitials: true, description: "Enhanced Obs 1:1" },
+        { id: "l321", label: "L3 2:1", staffPerSlot: 2, needsInitials: true, description: "Enhanced Obs 2:1" }
     ];
 
     const state = {
@@ -746,9 +797,9 @@
         header.style.display = "contents";
         header.innerHTML = `
             <div class="time-slot-header-cell">Time</div>
-            <div class="time-slot-header-cell">L1+L2</div>
-            <div class="time-slot-header-cell">L3 1:1</div>
-            <div class="time-slot-header-cell">L3 2:1</div>
+            <div class="time-slot-header-cell">L1+L2<br><span style="font-size: 9px; font-weight: 400;">(all pts)</span></div>
+            <div class="time-slot-header-cell">L3 1:1<br><span style="font-size: 9px; font-weight: 400;">(pt init)</span></div>
+            <div class="time-slot-header-cell">L3 2:1<br><span style="font-size: 9px; font-weight: 400;">(pt init)</span></div>
             <div class="time-slot-header-cell">Total</div>
         `;
         grid.appendChild(header);
@@ -759,20 +810,37 @@
             timeCell.innerText = time;
             grid.appendChild(timeCell);
 
-            OBSERVATION_LEVELS.forEach(level => {
-                const col = document.createElement("div");
-                col.className = "time-slot-input-group";
-                col.innerHTML = `
-                    <input type="number" class="time-slot-qty" id="qty-${level.id}-${slot}" value="0" min="0" onchange="updateTimeSlotTotal(${slot})">
-                    <input type="text" class="time-slot-initials" id="init-${level.id}-${slot}" placeholder="init">
-                `;
-                grid.appendChild(col);
-            });
+            // L1+L2 (no initials needed)
+            const l1Col = document.createElement("div");
+            l1Col.className = "time-slot-input-group";
+            l1Col.innerHTML = `
+                <input type="number" class="time-slot-qty" id="qty-l1-${slot}" value="1" min="0" max="1" onchange="updateTimeSlotTotal(${slot})">
+                <div class="time-slot-note">no initials</div>
+            `;
+            grid.appendChild(l1Col);
+
+            // L3 1:1 (needs initials)
+            const l311Col = document.createElement("div");
+            l311Col.className = "time-slot-input-group";
+            l311Col.innerHTML = `
+                <input type="number" class="time-slot-qty" id="qty-l311-${slot}" value="0" min="0" onchange="updateTimeSlotTotal(${slot})">
+                <input type="text" class="time-slot-initials" id="init-l311-${slot}" placeholder="e.g. JD">
+            `;
+            grid.appendChild(l311Col);
+
+            // L3 2:1 (needs initials)
+            const l321Col = document.createElement("div");
+            l321Col.className = "time-slot-input-group";
+            l321Col.innerHTML = `
+                <input type="number" class="time-slot-qty" id="qty-l321-${slot}" value="0" min="0" onchange="updateTimeSlotTotal(${slot})">
+                <input type="text" class="time-slot-initials" id="init-l321-${slot}" placeholder="e.g. AA">
+            `;
+            grid.appendChild(l321Col);
 
             const totalCell = document.createElement("div");
             totalCell.className = "time-slot-header-cell";
             totalCell.id = `total-${slot}`;
-            totalCell.innerText = "0";
+            totalCell.innerText = "1";
             grid.appendChild(totalCell);
         });
     }
@@ -822,6 +890,7 @@
             timeCell.innerText = time;
             row.appendChild(timeCell);
 
+            // Add observation level summary columns (L1+L2, L3 1:1, L3 2:1)
             OBSERVATION_LEVELS.forEach(level => {
                 const cell = document.createElement("td");
                 cell.id = `header-${level.id}-${slot}`;
@@ -837,6 +906,7 @@
             headerRow.removeChild(headerRow.lastChild);
         }
 
+        // Add staff column headers
         for (let i = 0; i < state.staffCount; i++) {
             const th = document.createElement("th");
             th.id = `staff-header-${i}`;
@@ -844,6 +914,7 @@
             headerRow.appendChild(th);
         }
 
+        // Build staff allocation data cells
         for (let slot = 0; slot < timeSlots.length; slot++) {
             const row = document.getElementById(`row-${slot}`);
             for (let staff = 0; staff < state.staffCount; staff++) {
