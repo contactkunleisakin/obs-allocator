@@ -606,7 +606,13 @@
 
             <div class="control-group">
                 <label for="targetBreaks">Target Break Hours</label>
-                <input type="number" id="targetBreaks" value="2" min="1" max="4">
+                <select id="targetBreaks">
+                    <option value="1">1.0 hours</option>
+                    <option value="1.5">1.5 hours</option>
+                    <option value="2" selected>2.0 hours</option>
+                    <option value="2.5">2.5 hours</option>
+                    <option value="3">3.0 hours</option>
+                </select>
             </div>
 
             <div class="shift-toggle-group">
@@ -732,7 +738,7 @@
 
     function initializeState() {
         state.staffCount = parseInt(document.getElementById("staffCount").value);
-        state.targetBreaks = parseInt(document.getElementById("targetBreaks").value);
+        state.targetBreaks = parseFloat(document.getElementById("targetBreaks").value);
         state.staffNames = {};
         state.timeSlotRequirements = {};
         state.timeSlotInitials = {};
